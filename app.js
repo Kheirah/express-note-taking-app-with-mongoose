@@ -16,6 +16,22 @@ app.get("/", async (req, res) => {
   res.json(notes);
 });
 
+//code for individual GET
+
+//code for vegan DELETE
+app.delete("/:tofu", async (request, response) => {
+  await connect();
+  const { tofu } = request.params;
+
+  const { acknowledged, deletedCount } = await Note.deleteOne({ _id: tofu });
+
+  if (!acknowledged || !deletedCount) {
+    response.json("Note not deleted.");
+  }
+
+  response.json({ acknowledged, deletedCount });
+});
+
 const server = app.listen(port, () =>
   console.log(`Express app listening on port ${port}!`)
 );
