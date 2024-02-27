@@ -16,7 +16,18 @@ app.get("/", async (req, res) => {
   res.json(notes);
 });
 
-//code for individual GET
+app.get("(:id", async (request, response) => {
+  await connect();
+
+  const { id } = request.params;
+  const notes = await Note.find({ _id: id });
+
+  if (!notes.length) {
+    return response.json({ error: "Note not found." });
+  }
+
+  return response.json(notes[0]);
+});
 
 //code for vegan DELETE
 app.delete("/:tofu", async (request, response) => {
