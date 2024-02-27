@@ -16,7 +16,7 @@ app.get("/", async (req, res) => {
   res.json(notes);
 });
 
-app.get("(:id", async (request, response) => {
+app.get("/:id", async (request, response) => {
   await connect();
 
   const { id } = request.params;
