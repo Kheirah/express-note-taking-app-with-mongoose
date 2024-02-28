@@ -3,11 +3,14 @@ const express = require("express");
 const app = express();
 const port = process.env.PORT || 3000;
 const connect = require("./lib/connect");
-const Note = require("./model/Note");
+const Note = require("./models/Note");
+const User = require("./models/User");
+
+app.use(express.json());
 
 app.get("/", async (req, res) => {
   await connect();
-  const notes = await Note.find();
+  const notes = await Note.find().populate("user", "name");
 
   if (!notes.length) {
     return res.json({ message: "Notes not found" });
@@ -51,18 +54,43 @@ app.get("/search/:str", async (request, response) => {
   response.json(notes);
 });
 
+/*
+ * goal:
+ * - create user if it doesn't exist
+ * - create note with the id of the user
+ */
 app.post("/:user", async (request, response) => {
   await connect();
-  const { content } = request.body;
+  const { user } = request.params;
+  console.log(user);
+  //check is user exists
+  if (user) {
+    let { _id: userId } = (await User.findOne({ name: user })) || {
+      _id: null,
+    }; //short-circuit
+    console.log("userId", userId);
+    //create new user if it doesn't already exist
+    if (!userId) {
+      const { _id: newUserId } = (await User.create({ name: user })) || {
+        _id: null,
+      };
+      userId = newUserId;
+      console.log("newUserId", newUserId);
+    }
 
-  if (content) {
-    const { _id } = await Note.create({ content });
-    response.json({ id: _id, message: "Successfully created note." });
-  } else {
-    response.json({
-      error: "Note NOT created. Content is missing.",
-    });
+    const { content } = request.body;
+
+    if (content) {
+      const { _id } = await Note.create({ content, user: userId });
+      return response.json({ id: _id, message: "Successfully created note." });
+    } else {
+      return response.json({
+        error: "Note NOT created. Content is missing.",
+      });
+    }
   }
+
+  response.json({ message: "Couldn't create new note. User is missing." });
 });
 
 app.put("/:id", async (req, res) => {
