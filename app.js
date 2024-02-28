@@ -43,6 +43,42 @@ app.delete("/:tofu", async (request, response) => {
   response.json({ acknowledged, deletedCount });
 });
 
+app.get("/search/:str", async (request, response) => {
+  await connect();
+  const { str } = request.params;
+  const regex = new RegExp(str, "i");
+  const notes = await Note.find({ content: regex });
+  response.json(notes);
+});
+
+app.post("/:user", async (request, response) => {
+  await connect();
+  const { content } = request.body;
+
+  if (content) {
+    const { _id } = await Note.create({ content });
+    response.json({ id: _id, message: "Successfully created note." });
+  } else {
+    response.json({
+      error: "Note NOT created. Content is missing.",
+    });
+  }
+});
+
+app.put("/:id", async (req, res) => {
+  await connect();
+  const id = req.params.id;
+  const { content } = req.body;
+
+  const { _id } = await Note.findByIdAndUpdate(id, { content });
+
+  if (!_id) {
+    return res.json({ error: "Note not found" });
+  }
+
+  return res.json("Successfully edited the note.");
+});
+
 const server = app.listen(port, () =>
   console.log(`Express app listening on port ${port}!`)
 );
