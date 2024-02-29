@@ -54,13 +54,21 @@ app.get("/:user/:id", async (request, response) => {
     return res.json({ message: "That user doesn't exist." });
   }
 
-  const note = await Note.findOne({ _id: id });
+  const {
+    _id: noteId,
+    user: userOfNote,
+    content,
+  } = (await Note.findOne({
+    _id: id,
+  }).populate("user", "name")) || { _id: null, user: null };
 
-  if (!note) {
-    return response.json({ message: "Note not found." });
+  if (!noteId || userOfNote.name != user) {
+    return response.json({
+      message: "That note either does not exist or belong to that user.",
+    });
   }
 
-  return response.json({ ...note._doc, id: note._id });
+  return response.json({ _id: noteId, content, user: userOfNote });
 });
 
 //code for vegan DELETE
