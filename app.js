@@ -16,7 +16,7 @@ app.get("/", async (req, res) => {
     return res.json({ message: "Notes not found" });
   }
 
-  res.json(notes);
+  res.json(notes.map((note) => ({ ...note._doc, id: note._id })));
 });
 
 app.get("/:user", async (request, response) => {
@@ -41,32 +41,50 @@ app.get("/:user", async (request, response) => {
   response.json(notes);
 });
 
-/* app.get("/:user/:id", async (request, response) => {
+app.get("/:user/:id", async (request, response) => {
   await connect();
 
-  const { id } = request.params;
-  const notes = await Note.find({ _id: id });
+  const { user, id } = request.params;
 
-  if (!notes.length) {
-    return response.json({ error: "Note not found." });
+  const { _id: userId } = (await User.findOne({ name: user })) || { _id: null };
+
+  if (!userId) {
+    return res.json({ message: "That user doesn't exist." });
   }
 
-  return response.json(notes[0]);
+  const note = await Note.findOne({ _id: id });
+
+  if (!note) {
+    return response.json({ message: "Note not found." });
+  }
+
+  return response.json({ ...note._doc, id: note._id });
 });
 
- */
 //code for vegan DELETE
-app.delete("/:tofu", async (request, response) => {
+app.delete("/:user/:tofu", async (request, response) => {
   await connect();
-  const { tofu } = request.params;
+  const { user, tofu } = request.params;
 
-  const { acknowledged, deletedCount } = await Note.deleteOne({ _id: tofu });
+  const { _id: userId } = (await User.findOne({ name: user })) || { _id: null };
 
-  if (!acknowledged || !deletedCount) {
-    response.json("Note not deleted.");
+  if (!userId) {
+    return response.json({ message: "Could not find user." });
   }
 
-  response.json({ acknowledged, deletedCount });
+  const { _id: noteId, user: userOfNote } = (await Note.findOne({
+    _id: tofu,
+  }).populate("user", "name")) || { _id: null, user: null }; // replacement object
+
+  if (!noteId || userOfNote.name != user) {
+    return response.json({
+      message: "That note either does not exist or belong to that user.",
+    });
+  }
+
+  await Note.deleteOne({ _id: tofu });
+
+  response.json({ message: "Note was deleted successfully." });
 });
 
 app.get("/search/:str", async (request, response) => {
@@ -85,20 +103,19 @@ app.get("/search/:str", async (request, response) => {
 app.post("/:user", async (request, response) => {
   await connect();
   const { user } = request.params;
-  console.log(user);
+
   //check is user exists
   if (user) {
     let { _id: userId } = (await User.findOne({ name: user })) || {
       _id: null,
     }; //short-circuit
-    console.log("userId", userId);
+
     //create new user if it doesn't already exist
     if (!userId) {
       const { _id: newUserId } = (await User.create({ name: user })) || {
         _id: null,
       };
       userId = newUserId;
-      console.log("newUserId", newUserId);
     }
 
     const { content } = request.body;
@@ -108,7 +125,7 @@ app.post("/:user", async (request, response) => {
       return response.json({ id: _id, message: "Successfully created note." });
     } else {
       return response.json({
-        error: "Note NOT created. Content is missing.",
+        message: "Note NOT created. Content is missing.",
       });
     }
   }
@@ -116,18 +133,34 @@ app.post("/:user", async (request, response) => {
   response.json({ message: "Couldn't create new note. User is missing." });
 });
 
-app.put("/:id", async (req, res) => {
+app.put("/:user/:id", async (req, res) => {
   await connect();
-  const id = req.params.id;
+  const { user, id } = req.params;
   const { content } = req.body;
+
+  const { _id: userId } = (await User.findOne({ name: user })) || { _id: null };
+
+  if (!userId) {
+    return res.json({ message: "That user does not exist." });
+  }
+
+  const { _id: noteId, user: userOfNote } = (await Note.findOne({
+    _id: id,
+  }).populate("user", "name")) || { _id: null, user: null };
+
+  if (!noteId || userOfNote.name != user) {
+    return response.json({
+      message: "That note either does not exist or belong to that user.",
+    });
+  }
 
   const { _id } = await Note.findByIdAndUpdate(id, { content });
 
   if (!_id) {
-    return res.json({ error: "Note not found" });
+    return res.json({ message: "Note not found" });
   }
 
-  return res.json("Successfully edited the note.");
+  return res.json({ message: "Successfully edited the note." });
 });
 
 const server = app.listen(port, () =>
