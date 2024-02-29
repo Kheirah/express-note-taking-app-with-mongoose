@@ -1,12 +1,14 @@
 require("dotenv").config();
 const express = require("express");
 const app = express();
+const cors = require("cors");
 const port = process.env.PORT || 3000;
 const connect = require("./lib/connect");
 const Note = require("./models/Note");
 const User = require("./models/User");
 
 app.use(express.json());
+app.use(cors());
 
 app.get("/", async (req, res) => {
   await connect();
